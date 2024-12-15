@@ -6,6 +6,7 @@ from consumer import Consumer
 from threading import Thread
 from producer import Producer
 from chunks_processing_info import ChunkInfo, merge_chunks_info
+import psutil
 
 
 # we need to make hybird approach
@@ -25,21 +26,23 @@ class ConcurrentModel(ABC):
 class HybirdModel(ConcurrentModel):
 
     def start(self, producer: Producer, consumer: Consumer) -> list[ChunkInfo]:
-        producer_thread = Thread (target=producer.run)
-        producer_thread.start()
+        producer_process = multiprocessing.Process(target=producer.run)
+        producer_process.start()
 
-        n_cores = multiprocessing.cpu_count()
 
-        # Start consumer processes
+
+
+        n_physical_cores = psutil.cpu_count(logical=False)
         processes = [
             multiprocessing.Process(target=consumer.run)
-            for _ in range(n_cores)
+            for _ in range(n_physical_cores - 2)
         ]
 
         for process in processes:
             process.start()
 
-        producer_thread.join()
+        producer_process.join()
+
 
         for process in processes:
             process.join()

@@ -1,5 +1,6 @@
 
 from time import time
+from time import sleep
 from Enums import FilterMode, ProcessingMode
 from concurrent_model import *
 from producer import Producer
@@ -12,6 +13,7 @@ from arguments import Args, parse_args
 from filter import *
 from statistics_writer import StatisticsWriter
 from chunks_processing_info import ChunkFilteringInfo
+from threading import Thread
 
 # this is the vonfigration 'creation of the logging file'
 
@@ -23,8 +25,22 @@ logging.basicConfig(
 )
 
 
+def monitor_queue(queue, interval=1):
+    while True:
+        print(f"Queue size: {queue.qsize()}")
+        sleep(interval)
+
+
 def main(args: Args):
-    producer, consumer = setup_producer_consumer(args)
+    producer, consumer , chunks_queue = setup_producer_consumer(args)
+
+    # test queue
+    monitor_thread = Thread(target=monitor_queue, args=(chunks_queue,))
+    monitor_thread.daemon = True  # Optional: allows the program to exit even if the thread is running
+    monitor_thread.start()
+    #test queue
+
+
     writer = StatisticsWriter(args)
     #make this model make an instance of the classs
     concurrent_model = setup_concurrent_model(args.processing_mode)
@@ -74,7 +90,7 @@ def setup_producer_consumer(args: Args) -> tuple[Producer, Consumer]:
     producer = Producer(chunks_queue, reading_info_queue, args)
     consumer = Consumer(chunks_queue, filtering_info_queue, text_filter, args)
 
-    return producer, consumer
+    return producer, consumer ,chunks_queue
 
 
 if __name__ == "__main__":
